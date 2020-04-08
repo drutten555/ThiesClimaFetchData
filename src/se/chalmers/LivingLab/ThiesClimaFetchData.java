@@ -7,7 +7,7 @@ public class ThiesClimaFetchData
 {
     public static final String hostname = "192.168.1.10";
     public static final int port = 23;
-    public static final String command = "MM";
+    public static final String defaultCommand = "MM";
     public static final String STX = new String(new byte[] { (byte)0x02 });
     public static final String ETX = new String(new byte[] { (byte)0x03 });
 
@@ -18,23 +18,26 @@ public class ThiesClimaFetchData
 
     public static void main(String[] args)
     {
-        new ThiesClimaFetchData();
+        if (args.length == 0)
+            new ThiesClimaFetchData(defaultCommand);
+        else
+            new ThiesClimaFetchData(args[0]);
     }
 
-    public ThiesClimaFetchData()
+    public ThiesClimaFetchData(String command)
     {
         try
         {
             setUpConnection();
-            gatherData();
+            gatherData(command);
         }
         catch (IOException e)
         {
-            System.out.println(e);
+            System.out.println("IO exception when communicating with " + hostname + ":" + e);
         }
         finally
         {
-            try { cleanUpAndClose(); } catch (IOException e) {}
+            try { cleanUpAndClose(); } catch (IOException e) { System.err.println("IO exception when communicating with " + hostname + ":" + e); }
         }
     }
 
@@ -45,7 +48,7 @@ public class ThiesClimaFetchData
         output = new PrintStream(mySocket.getOutputStream());
     }
 
-    private void gatherData() throws IOException
+    private void gatherData(String command) throws IOException
     {
         String responseLine;
 
@@ -54,8 +57,11 @@ public class ThiesClimaFetchData
 
         while ((responseLine = input.readLine()) != null)
         {
-            // System.out.println(responseLine);
-            parseOutPut(responseLine);
+            if (command.endsWith(defaultCommand))
+                parseOutPut(responseLine);
+            else
+                System.out.println(responseLine);
+
             if (responseLine.startsWith("END") || responseLine.equals("Command not processed"))
                 break;
         }
@@ -82,7 +88,7 @@ public class ThiesClimaFetchData
         }
 
         name = line.substring(0, colonPos).trim();
-        value = line.substring(colonPos + 1, line.length()).trim();
+        value = line.substring(colonPos + 1).trim();
 
         if (value.length() == 0)
             return;
@@ -99,7 +105,7 @@ public class ThiesClimaFetchData
 
             if (i < value.length())
             {
-                unit = value.substring(i, value.length());
+                unit = value.substring(i);
                 value = value.substring(0, i);
             }
         }
